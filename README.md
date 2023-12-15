@@ -36,28 +36,4 @@ x_beacon:9.475271358924696, y_beacon:5.333235601052133
 ...
 ```
 
-The beacon was located relative to the locator as follows:
-
-<img src="img/location.jpg" alt="img/location.jpg" width="400"/>
-
-Locator settings:
-
-<img src="img/locator_settings.jpg" alt="img/locator_settings.jpg" width="400"/>
-
-The accuracy of the angles obtained corresponds to the accuracy stated in the article, where measurements were taken from many different points. In other words, it is no more than 6 degrees.
-
-## Problems in calculating the AoA 
-
-In the stationary test, everything is fine, but if you carry out the following experiment: first the beacon lies in place, then it moves a little from side to side, and at the end - it lies in the same place again, then a strange effect is observed: during this small movement, a constant offset by some angle. This movement is expected to be close to stationary and therefore the angle should be approximately the same, but this is not the case.
-
-In support of my words, I attach a video of the experiment:
-
-
-https://user-images.githubusercontent.com/30315050/143232495-941c00ad-b561-448f-9a1e-35b51a915432.MOV
-
-
-And a figure of the change in azimuth phases:
-
-![dynamic_azimuth_phases](img/dynamic_azimuth_phases.jpg)
-
 The input data is located in the file: `dynamic.json`
