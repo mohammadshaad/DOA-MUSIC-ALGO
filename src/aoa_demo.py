@@ -1,13 +1,14 @@
 import math
-import sys
 import json
+import sounddevice as sd
 from pyargus.directionEstimation import *
 from scipy.spatial import distance
 from collections import deque
 import numpy as np
+import sys
 
 N_SAMPLES_OF_REF_PERIOD = 8
-NUMBER_MESSAGES = 1 # data accumulation window
+NUMBER_MESSAGES = 1  # data accumulation window
 SIGMA_FILTER_WINDOW = 5
 
 # map parameters
@@ -27,10 +28,10 @@ d = 0.05  # inter element spacing
 M = 2  # number of antenna elements in the antenna system
 
 
-# 68–95–99.7 rule for identify and discard positional outliers 
+# 68–95–99.7 rule for identify and discard positional outliers
 class SigmaFilter:
-    def __init__(self, maxlen = SIGMA_FILTER_WINDOW):
-        self.deque = deque(maxlen = maxlen)
+    def __init__(self, maxlen=SIGMA_FILTER_WINDOW):
+        self.deque = deque(maxlen=maxlen)
 
     def isValid(self, v):
         isValid = False
@@ -76,7 +77,7 @@ def get_coordinate(azimuth, elevation, height, receiver_coords):
     nx = np.cos(np.deg2rad(90.0 - azimuth))
     nz = np.cos(np.deg2rad(90.0 - abs(elevation)))
     if math.isclose(nx, 0.0, abs_tol=1e-16) or math.isclose(nz, 0.0, abs_tol=1e-16):
-        return [float("nan"),  float("nan")]
+        return [float("nan"), float("nan")]
     else:
         ny = np.sqrt(1 - nx ** 2 - nz ** 2)
         t = (height - receiver_coords[2]) / nz
@@ -85,30 +86,24 @@ def get_coordinate(azimuth, elevation, height, receiver_coords):
     return [x, y]
 
 
-if __name__ == '__main__':
+def main():
     velSigmaFilter = SigmaFilter(SIGMA_FILTER_WINDOW)
     messages = []
-    for line in sys.stdin:
-        data = json.loads(line)
-        try:
-            aoa_data = json.loads(data['message'])
-        except BaseException as e:
-            # print(e)
-            continue
 
-        try:
-            for i in aoa_data[1:]:
-                if i['aoa']['frequency'] == frequency:
-                    messages.append(i)
-        except BaseException as e:
-            # print(e)
-            pass
+    def callback(indata, frames, time, status):
+        if status:
+            print(status, file=sys.stderr)
 
-        if len(messages) < NUMBER_MESSAGES:
-            continue
+        # Process the audio data here
+        data = {'aoa': {'frequency': frequency, 'iq': indata.flatten().tolist()}}
+        messages.append(data)
 
+        if len(messages) >= NUMBER_MESSAGES:
+            process_messages()
+
+    def process_messages():
         x_00, azimuth_x_12, elevation_x_12 = [], [], []
-        azimuth_phases, elevation_phases = [], []
+
         for i in messages:
             ref_phases = []
             iq_samples = [i['aoa']['iq'][n:n + 2] for n in range(0, len(i['aoa']['iq']), 2)]
@@ -122,6 +117,7 @@ if __name__ == '__main__':
             phase_ref = np.mean(ref_phases)
 
             iq_2ant_batches = [iq_samples[n:n + 2] for n in range(N_SAMPLES_OF_REF_PERIOD, len(iq_samples), 2)]
+            elevation_phases = []  # Moved outside the loop for elevation phases
             for iq_batch_idx, iq_batch in enumerate(iq_2ant_batches[:-1]):
                 iq_next = complex(iq_batch[1][0], iq_batch[1][1])
                 iq_cur = complex(iq_batch[0][0], iq_batch[0][1])
@@ -130,25 +126,28 @@ if __name__ == '__main__':
                 diff_phase = to_plus_minus_pi((phase_next - phase_cur) - 2 * phase_ref)
                 if iq_batch_idx % 2 != 0:
                     elevation_phases.append(diff_phase)
+                    elevation_x_12.append(np.exp(1j * np.deg2rad(diff_phase)))
                 else:
                     x_00.append(1)
-                    azimuth_phases.append(diff_phase)
-        messages.clear()
-        # MUSIC algo
-        X = np.zeros((M, np.size(x_00)), dtype=complex)
-        X[0, :] = x_00
-        for i in azimuth_phases:
-            azimuth_x_12.append(np.exp(1j * np.deg2rad(i)))
-        X[1, :] = azimuth_x_12
+                    azimuth_x_12.append(np.exp(1j * np.deg2rad(diff_phase)))
+
+        # Ensure both azimuth and elevation arrays have the same size
+        min_len = min(len(x_00), len(elevation_x_12))
+        X = np.zeros((M, min_len), dtype=complex)
+        X[0, :] = x_00[:min_len]
+        X[1, :] = elevation_x_12[:min_len]
+
         azimuth_angle = get_angle(X)
 
-        for i in elevation_phases:
-            elevation_x_12.append(np.exp(1j * np.deg2rad(i)))
-        X[1, :] = elevation_x_12
-        elevation_angle = get_angle(X)
-        print(f'azimuth_angle:{azimuth_angle}, elevation_angle:{elevation_angle}')
+        print(f'azimuth_angle:{azimuth_angle}')
 
-        xy = get_coordinate(azimuth_angle, elevation_angle, z_beacon, [x_locator, y_locator, z_locator])
-        if not math.isnan(xy[0]) and not math.isnan(xy[1]):
-            if velSigmaFilter.isValid(xy):
-                print(f'x_beacon:{xy[0]}, y_beacon:{xy[1]}')
+    with sd.InputStream(callback=callback):
+        print("Recording started. Press Ctrl+C to stop.")
+        try:
+            while True:
+                pass  # Keep the program running
+        except KeyboardInterrupt:
+            print("\nRecording stopped.")
+
+if __name__ == '__main__':
+    main()
