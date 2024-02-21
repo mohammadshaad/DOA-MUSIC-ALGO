@@ -140,6 +140,12 @@ def main():
         azimuth_angle = get_angle(X)
 
         print(f'azimuth_angle:{azimuth_angle}')
+        
+        # Calculate elevation angle
+        elevation_angle = get_angle(X)
+
+        print(f'azimuth_angle:{azimuth_angle}, elevation_angle:{elevation_angle}')
+
 
     with sd.InputStream(callback=callback):
         print("Recording started. Press Ctrl+C to stop.")
