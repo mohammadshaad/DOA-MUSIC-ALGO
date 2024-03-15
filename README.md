@@ -1,7 +1,6 @@
 This demo project shows how using raw IQ samples obtained from the Minew Aoa Locator, you can get the azimuth and elevation angles at which the beacon is located. Using these angles, we also get the position of the beacon in XY coordinates (knowing the location of the locator in the same coordinate system). This project is based on our [AoA article](https://navigine.com/blog/using-angle-of-arrival-for-direction-finding-with-bluetooth/) in which we determined the azimuth angle using 2 adjacent elements of the linear antenna array of the locator.
 
 ## Getting started
-
 To start the project, you need to submit raw IQ samples to the algorithm input:
 
 ```
