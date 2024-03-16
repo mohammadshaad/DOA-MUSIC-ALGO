@@ -3,6 +3,7 @@ This demo project shows how using raw IQ samples obtained from the Minew Aoa Loc
 ## Getting started
 To start the project, you need to submit raw IQ samples to the algorithm input:
 
+
 ```
  cd src/
  cat ../data/static.json | python3 aoa_demo.py 
